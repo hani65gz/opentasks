@@ -61,8 +61,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.TimeZone;
-
 import static org.dmfs.android.contenttestpal.ContentMatcher.resultsIn;
 import static org.junit.Assert.assertThat;
 
@@ -211,7 +209,6 @@ public class TaskProviderTest
         String durationStr = "PT1H";
         Duration duration = Duration.parse(durationStr);
         long durationMillis = duration.toMillis();
-        TimeZone timeZone = TimeZone.getDefault();
 
         assertThat(new MultiBatch(
                 new Put<>(taskList, new EmptyRowData<TaskLists>()),
@@ -241,7 +238,6 @@ public class TaskProviderTest
 
         DateTime start = DateTime.now();
         DateTime due = start.addDuration(new Duration(1, 0, 1));
-        TimeZone timeZone = TimeZone.getDefault();
 
         assertThat(new MultiBatch(
                 new Put<>(taskList, new NameData("list1")),
@@ -278,22 +274,18 @@ public class TaskProviderTest
      * Having a table with a single task. Delete task and check if instance is deleted accordingly.
      */
     @Test
-    public void testInstanceDelete()
+    public void testInstanceDelete() throws Exception
     {
         RowSnapshot<TaskLists> taskList = new VirtualRowSnapshot<>(new LocalTaskListsTable(mAuthority));
         Table<Tasks> taskTable = new TaskListScoped(taskList, new TasksTable(mAuthority));
         RowSnapshot<Tasks> task = new VirtualRowSnapshot<>(taskTable);
         OperationsQueue queue = new BasicOperationsQueue(mClient);
 
-        assertThat(new MultiBatch(
+        queue.enqueue(new MultiBatch(
                 new Put<>(taskList, new NameData("list1")),
                 new Put<>(task, new TitleData("task1"))
-
-        ), resultsIn(queue,
-                new Assert<>(taskList, new NameData("list1")),
-                new Assert<>(task, new TitleData("task1")),
-                new PostOperationRelatedAssert<>(new InstanceTable(mAuthority), task, Instances.TASK_ID)
         ));
+        queue.flush();
 
         assertThat(new SingletonBatch(
                 new Delete<>(task)
